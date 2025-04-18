@@ -19,6 +19,10 @@ interface AuthContextType {
     email: string,
     password: string
   ) => Promise<boolean>;
+  updateProfile: (
+    userId: string,
+    profileData: Partial<User>
+  ) => Promise<User | null>;
   logout: () => void;
 }
 
@@ -86,6 +90,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  const updateProfile = async (
+    userId: string,
+    profileData: Partial<User>
+  ): Promise<User | null> => {
+    try {
+      const response = await axios.put(`/api/users/${userId}`, profileData);
+      const updatedUser = response.data;
+
+      // Update current user in state and localStorage
+      setCurrentUser(updatedUser);
+      localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+
+      return updatedUser;
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return null;
+    }
+  };
+
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem("currentUser");
@@ -97,6 +120,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     isLoading,
     login,
     signup,
+    updateProfile,
     logout,
   };
 

@@ -8,6 +8,7 @@ import {
 import TweetCard from "../components/TweetCard";
 import { useAuth } from "../context/AuthContext";
 import { useTweets } from "../context/TweetContext";
+import ProfileEditModal from "../components/ProfileEditModal";
 
 const MOCK_USER = {
   id: "1",
@@ -28,6 +29,7 @@ const Profile = () => {
   const { tweets } = useTweets();
   const [activeTab, setActiveTab] = useState("tweets");
   const [tweetDeleted, setTweetDeleted] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Reset the tweetDeleted state after a short delay
   useEffect(() => {
@@ -114,8 +116,8 @@ const Profile = () => {
           </div>
         </header>
 
-        <div className="h-48 bg-gray-800">
-          {/* Cover photo would go here */}
+        <div className={`h-48 ${currentUser.banner || "bg-gray-800"}`}>
+          {/* Banner displays here */}
         </div>
 
         <div className="p-4">
@@ -126,7 +128,10 @@ const Profile = () => {
               className="absolute -top-16 w-32 h-32 rounded-full border-4 border-black"
             />
             <div className="ml-36 flex justify-end">
-              <button className="px-4 py-2 border border-gray-700 rounded-full font-bold hover:bg-gray-900 flex items-center gap-2">
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="px-4 py-2 border border-gray-700 rounded-full font-bold hover:bg-gray-900 flex items-center gap-2"
+              >
                 <PencilLine className="w-4 h-4" />
                 Edit profile
               </button>
@@ -241,6 +246,15 @@ const Profile = () => {
 
         <div className="divide-y divide-gray-700">{renderTweets()}</div>
       </div>
+
+      {/* Profile Edit Modal */}
+      {currentUser && (
+        <ProfileEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          user={currentUser}
+        />
+      )}
     </main>
   );
 };

@@ -21,6 +21,7 @@ export interface User {
   location?: string;
   website?: string;
   joinDate?: string;
+  banner?: string; // Add banner property
 }
 
 export interface Notification {
