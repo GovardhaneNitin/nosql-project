@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, ChevronDown } from "lucide-react";
+import { X } from "lucide-react";
 import { User } from "../types";
 import { useAuth } from "../context/AuthContext";
 
