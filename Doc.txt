@@ -1,0 +1,36 @@
+Social MIT - Connect & Share
+
+Introduction
+Social MIT is a modern social media platform designed to enable users to connect, share, and engage with others. This project is currently focused on the frontend implementation, providing a seamless and interactive user experience. The backend is yet to be developed and will be built using Python and MongoDB.
+
+How It Works
+The frontend of Social MIT includes the following features:
+- User Authentication: Users can sign up, log in, and log out.
+- Home Feed: Displays tweets from users, allowing interactions such as likes, retweets, and replies.
+- Explore Page: Showcases trending topics and latest tweets.
+- Profile Management: Users can view and edit their profiles, including their tweets, likes, and retweets.
+- Bookmarks: Users can save tweets for later reference.
+- Notifications: Displays user notifications for likes, retweets, follows, and replies.
+- Messages: Allows users to view and search direct messages.
+- Settings: Provides options to manage preferences like appearance, privacy, and notifications.
+
+Tech Stack (Frontend)
+The frontend is built using the following technologies:
+- React: For building the user interface.
+- React Router: For managing navigation and routing.
+- Tailwind CSS: For styling and responsive design.
+- Lucide React: For modern and customizable icons.
+- Vite: For fast development and build tooling.
+- TypeScript: For type safety and better developer experience.
+- Date-fns: For date formatting and manipulation.
+
+Backend Requirements
+The backend for Social MIT will be developed using:
+- Python: As the primary programming language.
+- MongoDB: For storing user data, tweets, and other related information.
+
+The backend will handle user authentication, data storage, and API endpoints to support the frontend functionality.
+
+Next Steps
+1. Complete the backend development using Python and MongoDB.
+2. Integrate the backend with the frontend to enable full functionality.
