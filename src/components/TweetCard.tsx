@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Heart,
   MessageCircle,
@@ -7,11 +7,17 @@ import {
   Bookmark,
   MoreHorizontal,
   Trash2,
+  MapPin,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Tweet } from "../types";
+import type { Comment } from "../types";
 import { formatDistanceToNow } from "date-fns";
 import { useTweets } from "../context/TweetContext";
 import { useAuth } from "../context/AuthContext";
+import CommentBox from "./CommentBox";
+import CommentCard from "./CommentCard";
 
 interface TweetCardProps {
   tweet: Tweet;
@@ -19,14 +25,92 @@ interface TweetCardProps {
 }
 
 const TweetCard: React.FC<TweetCardProps> = ({ tweet, onDelete }) => {
-  const { likeTweet, retweetTweet, bookmarkTweet, deleteTweet, bookmarks } =
-    useTweets();
+  const {
+    likeTweet,
+    retweetTweet,
+    bookmarkTweet,
+    deleteTweet,
+    bookmarks,
+    getComments,
+    addComment,
+  } = useTweets();
   const { currentUser } = useAuth();
   const [showOptions, setShowOptions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [showCommentBox, setShowCommentBox] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isBookmarked = bookmarks.some((b) => b.id === tweet.id);
   const isOwnTweet = currentUser?.id === tweet.author.id;
+
+  // Function to handle comment section toggle
+  const toggleComments = useCallback(async () => {
+    if (showComments) {
+      setShowComments(false);
+      return;
+    }
+
+    setShowComments(true);
+
+    if (comments.length === 0) {
+      setLoadingComments(true);
+      setError(null);
+
+      try {
+        const fetchedComments = (await getComments(
+          tweet.id
+        )) as unknown as Comment[];
+        if (fetchedComments) {
+          setComments(fetchedComments);
+        } else {
+          setError("Could not load comments");
+        }
+      } catch (error) {
+        console.error("Failed to load comments:", error);
+        setError("Failed to load comments. Please try again.");
+      } finally {
+        setLoadingComments(false);
+      }
+    }
+  }, [showComments, comments.length, getComments, tweet.id]);
+
+  // Function to handle comment button click
+  const handleCommentClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setShowCommentBox(!showCommentBox);
+
+      if (!showComments) {
+        toggleComments();
+      }
+    },
+    [showCommentBox, showComments, toggleComments]
+  );
+
+  // Handle new comment added
+  const handleCommentAdded = useCallback(async () => {
+    setLoadingComments(true);
+    setError(null);
+
+    try {
+      const updatedComments = (await getComments(
+        tweet.id
+      )) as unknown as Comment[];
+      if (updatedComments) {
+        setComments(updatedComments);
+      } else {
+        setError("Could not refresh comments");
+      }
+    } catch (error) {
+      console.error("Failed to refresh comments:", error);
+      setError("Failed to refresh comments. Please try again.");
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [getComments, tweet.id]);
 
   const handleDeleteTweet = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -111,8 +195,48 @@ const TweetCard: React.FC<TweetCardProps> = ({ tweet, onDelete }) => {
             {tweet.content}
           </p>
 
+          {/* Display images if present */}
+          {tweet.images && tweet.images.length > 0 && (
+            <div
+              className={`mt-3 grid ${
+                tweet.images.length === 1 ? "grid-cols-1" : "grid-cols-2"
+              } gap-2 rounded-xl overflow-hidden`}
+            >
+              {tweet.images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className={`
+                    ${tweet.images?.length === 1 ? "h-80" : "h-48"} 
+                    ${
+                      tweet.images?.length === 3 && idx === 0
+                        ? "col-span-2"
+                        : ""
+                    }
+                  `}
+                >
+                  <img
+                    src={img}
+                    alt="Tweet media"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Display location if present */}
+          {tweet.location && (
+            <div className="mt-2 flex items-center text-blue-400 text-sm">
+              <MapPin className="w-4 h-4 mr-1" />
+              <span>{tweet.location}</span>
+            </div>
+          )}
+
           <div className="flex justify-between mt-4 max-w-md">
-            <button className="flex items-center gap-2 text-gray-500 hover:text-blue-400 transition-colors group">
+            <button
+              onClick={handleCommentClick}
+              className="flex items-center gap-2 text-gray-500 hover:text-blue-400 transition-colors group"
+            >
               <MessageCircle className="w-5 h-5 group-hover:bg-blue-400/10 rounded-full p-0.5" />
               <span>{tweet.replies}</span>
             </button>
@@ -169,6 +293,76 @@ const TweetCard: React.FC<TweetCardProps> = ({ tweet, onDelete }) => {
               />
             </button>
           </div>
+
+          {/* Comment box */}
+          {showCommentBox && (
+            <div className="mt-4 border-t border-gray-700 pt-3">
+              <CommentBox
+                tweetId={tweet.id}
+                onCommentAdded={handleCommentAdded}
+              />
+            </div>
+          )}
+
+          {/* Toggle comments button */}
+          {tweet.replies > 0 && (
+            <button
+              onClick={toggleComments}
+              className="mt-2 flex items-center gap-1 text-gray-500 hover:text-blue-400 text-sm"
+            >
+              {showComments ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  <span>Hide comments</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  <span>
+                    Show {tweet.replies}{" "}
+                    {tweet.replies === 1 ? "comment" : "comments"}
+                  </span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Comments section */}
+          {showComments && (
+            <div className="mt-3 border-t border-gray-700 pt-2">
+              {loadingComments ? (
+                <div className="py-4 text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="mt-2">Loading comments...</p>
+                </div>
+              ) : error ? (
+                <div className="py-4 text-center text-red-500">
+                  <p>{error}</p>
+                  <button
+                    onClick={() => handleCommentAdded()}
+                    className="mt-2 text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : comments.length > 0 ? (
+                <div className="space-y-2">
+                  {comments.map((comment) => (
+                    <CommentCard
+                      key={comment.id}
+                      comment={comment}
+                      tweetId={tweet.id}
+                      onCommentDeleted={handleCommentAdded}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-4 text-center text-gray-500">
+                  <p>No comments yet. Be the first to comment!</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Hexagon } from "lucide-react"; // Updated logo
 import { useAuth } from "../context/AuthContext";
+import axios from "axios";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -23,6 +24,22 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      // First check if API is reachable
+      try {
+        const healthCheck = await axios.get("/api/health");
+        console.log("API Health check:", healthCheck.data);
+        if (healthCheck.data.status !== "ok") {
+          setError(`Backend API not ready: ${healthCheck.data.status}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (healthErr: any) {
+        console.error("API health check failed:", healthErr);
+        setError("Cannot connect to backend server. Please try again later.");
+        setIsLoading(false);
+        return;
+      }
+
       const success = await login(email, password);
       if (success) {
         navigate("/");
@@ -30,8 +47,16 @@ const Login = () => {
         setError("Invalid email or password");
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "An error occurred during login");
-      console.error(err);
+      if (err.response?.data?.error) {
+        // Show specific error from the API
+        setError(err.response.data.error);
+      } else if (err.message) {
+        // Show error message
+        setError(err.message);
+      } else {
+        setError("An error occurred during login");
+      }
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }

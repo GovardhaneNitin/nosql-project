@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Hexagon } from "lucide-react"; // Updated logo
 import { useAuth } from "../context/AuthContext";
+import axios from "axios";
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -30,15 +31,42 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
+      // First check if API is reachable
+      try {
+        const healthCheck = await axios.get("/api/health");
+        console.log("API Health check:", healthCheck.data);
+        if (healthCheck.data.status !== "ok") {
+          setError(`Backend API not ready: ${healthCheck.data.status}`);
+          setIsLoading(false);
+          return;
+        }
+      } catch (healthErr: any) {
+        console.error("API health check failed:", healthErr);
+        setError("Cannot connect to backend server. Please try again later.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Proceed with signup
       const success = await signup(name, username, email, password);
       if (success) {
         navigate("/");
       } else {
-        setError("Failed to create account");
+        setError(
+          "Failed to create account. Login unsuccessful after registration."
+        );
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "An error occurred during signup");
-      console.error(err);
+      if (err.response?.data?.error) {
+        // Show specific error from the API
+        setError(err.response.data.error);
+      } else if (err.message) {
+        // Show error message
+        setError(err.message);
+      } else {
+        setError("An error occurred during signup");
+      }
+      console.error("Signup error:", err);
     } finally {
       setIsLoading(false);
     }

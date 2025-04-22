@@ -17,3 +17,9 @@ This folder contains data models for the backend.
 - `content`: string
 - `authorId`: string (reference to the user's `_id`)
 - `createdAt`: string (ISO timestamp)
+- `likes`: number
+- `retweets`: number
+- `replies`: number
+- `images`: array of strings (image URLs)
+- `location`: string
+- `scheduledDate`: string (ISO timestamp for scheduled tweets)

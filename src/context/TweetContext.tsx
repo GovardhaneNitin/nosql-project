@@ -7,19 +7,26 @@ import React, {
 } from "react";
 import { Tweet, User } from "../types";
 import { useAuth } from "./AuthContext";
+import axios from "axios";
 
 interface TweetContextType {
   tweets: Tweet[];
   isLoading: boolean;
-  postTweet: (content: string) => Promise<boolean>;
+  postTweet: (
+    content: string,
+    images?: string[],
+    location?: string,
+    scheduledDate?: string
+  ) => Promise<boolean>;
   likeTweet: (tweetId: string) => void;
   retweetTweet: (tweetId: string) => void;
   bookmarkTweet: (tweetId: string) => void;
   deleteTweet: (tweetId: string) => Promise<boolean>;
   bookmarks: Tweet[];
+  addComment: (tweetId: string, content: string) => Promise<boolean>;
+  getComments: (tweetId: string) => Promise<Comment[]>;
+  deleteComment: (commentId: string, tweetId: string) => Promise<boolean>;
 }
-
-const TweetContext = createContext<TweetContextType | undefined>(undefined);
 
 // Sample initial tweets
 const INITIAL_TWEETS: Tweet[] = [
@@ -79,6 +86,9 @@ const INITIAL_TWEETS: Tweet[] = [
   },
 ];
 
+// Create the TweetContext
+const TweetContext = createContext<TweetContextType | undefined>(undefined);
+
 export const TweetProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -87,14 +97,59 @@ export const TweetProvider: React.FC<{ children: ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    // Load tweets from localStorage or use initial tweets
-    const storedTweets = localStorage.getItem("tweets");
-    const storedBookmarks = localStorage.getItem("bookmarks");
+  // Add a function to fetch tweets from the backend
+  const fetchTweets = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get("/api/tweets");
+      console.log("Fetched tweets from API:", response.data);
 
-    setTweets(storedTweets ? JSON.parse(storedTweets) : INITIAL_TWEETS);
+      // Process the tweets to include proper user objects
+      const processedTweets = await Promise.all(
+        response.data.map(async (tweet: any) => {
+          try {
+            // Get author info for each tweet
+            const authorResponse = await axios.get(
+              `/api/users/${tweet.authorId}`
+            );
+            return {
+              id: tweet.id,
+              content: tweet.content,
+              author: authorResponse.data,
+              createdAt: tweet.createdAt,
+              likes: tweet.likes || 0,
+              retweets: tweet.retweets || 0,
+              replies: tweet.replies || 0,
+              images: tweet.images || [],
+              location: tweet.location || "",
+              scheduledDate: tweet.scheduledDate || "",
+            };
+          } catch (error) {
+            console.error("Error fetching author for tweet:", error);
+            return null;
+          }
+        })
+      );
+
+      const validTweets = processedTweets.filter((tweet) => tweet !== null);
+      setTweets(validTweets);
+    } catch (error) {
+      console.error("Error fetching tweets:", error);
+      // Fallback to local storage or initial tweets
+      const storedTweets = localStorage.getItem("tweets");
+      setTweets(storedTweets ? JSON.parse(storedTweets) : INITIAL_TWEETS);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // On mount, try to fetch tweets
+    fetchTweets();
+
+    // Still load bookmarks from localStorage
+    const storedBookmarks = localStorage.getItem("bookmarks");
     setBookmarks(storedBookmarks ? JSON.parse(storedBookmarks) : []);
-    setIsLoading(false);
   }, []);
 
   // Update localStorage when tweets or bookmarks change
@@ -106,27 +161,102 @@ export const TweetProvider: React.FC<{ children: ReactNode }> = ({
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
   }, [bookmarks]);
 
-  const postTweet = async (content: string): Promise<boolean> => {
+  const postTweet = async (
+    content: string,
+    images: string[] = [],
+    location: string = "",
+    scheduledDate: string = ""
+  ): Promise<boolean> => {
     if (!currentUser) return false;
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      console.log("Posting tweet with data:", {
+        content,
+        images,
+        location,
+        scheduledDate,
+      });
 
+      // Create tweet data object
+      const tweetData = {
+        content,
+        authorId: currentUser.id,
+        createdAt: new Date().toISOString(),
+        images,
+        location,
+        scheduledDate,
+      };
+
+      console.log("Sending to API:", tweetData);
+      console.log("User ID format:", typeof currentUser.id, currentUser.id);
+
+      // First check if API is available
+      try {
+        await axios.get("/api/health");
+      } catch (healthErr) {
+        console.error("API health check failed:", healthErr);
+        throw new Error("Backend server appears to be offline");
+      }
+
+      // Send to backend API with timeout
+      const response = await axios.post("/api/tweets", tweetData, {
+        timeout: 10000, // 10 second timeout
+      });
+
+      console.log("API response:", response.data);
+
+      // Refresh tweets from server to ensure we have the latest data
+      setTimeout(() => fetchTweets(), 1000);
+
+      // Create frontend tweet object with API response
       const newTweet: Tweet = {
-        id: Date.now().toString(),
+        id: response.data.tweetId || Date.now().toString(),
         content,
         author: currentUser,
         createdAt: new Date().toISOString(),
         likes: 0,
         retweets: 0,
         replies: 0,
+        images,
+        location,
+        scheduledDate,
       };
 
+      // Update state
       setTweets((prevTweets) => [newTweet, ...prevTweets]);
       return true;
     } catch (error) {
       console.error("Error posting tweet:", error);
+
+      // Log specific error details
+      if (axios.isAxiosError(error)) {
+        console.error("API Error Details:", {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message,
+        });
+      }
+
+      // Fallback to local-only mode if API fails
+      if (process.env.NODE_ENV === "development") {
+        console.log("Falling back to local mode for development");
+        const newTweet: Tweet = {
+          id: Date.now().toString(),
+          content,
+          author: currentUser,
+          createdAt: new Date().toISOString(),
+          likes: 0,
+          retweets: 0,
+          replies: 0,
+          images,
+          location,
+          scheduledDate,
+        };
+
+        setTweets((prevTweets) => [newTweet, ...prevTweets]);
+        return true;
+      }
+
       return false;
     }
   };
@@ -209,6 +339,130 @@ export const TweetProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  // Add new function to post a comment
+  const addComment = async (
+    tweetId: string,
+    content: string
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+
+    try {
+      // Create comment data object
+      const commentData = {
+        content,
+        authorId: currentUser.id,
+        tweetId,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Send to backend API
+      const response = await axios.post(
+        `/api/tweets/${tweetId}/comments`,
+        commentData
+      );
+      console.log("Comment API response:", response.data);
+
+      // Update the tweet's replies count in state
+      setTweets((prevTweets) =>
+        prevTweets.map((tweet) => {
+          if (tweet.id === tweetId) {
+            return {
+              ...tweet,
+              replies: tweet.replies + 1,
+            };
+          }
+          return tweet;
+        })
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Error posting comment:", error);
+
+      // Fallback for development
+      if (process.env.NODE_ENV === "development") {
+        // Update the tweet's replies count in state anyway
+        setTweets((prevTweets) =>
+          prevTweets.map((tweet) => {
+            if (tweet.id === tweetId) {
+              return {
+                ...tweet,
+                replies: tweet.replies + 1,
+              };
+            }
+            return tweet;
+          })
+        );
+        return true;
+      }
+
+      return false;
+    }
+  };
+
+  // Add function to get comments for a tweet
+  const getComments = async (tweetId: string): Promise<Comment[]> => {
+    try {
+      // Fetch comments from API
+      const response = await axios.get(`/api/tweets/${tweetId}/comments`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      return [];
+    }
+  };
+
+  // Add new function to delete a comment
+  const deleteComment = async (
+    commentId: string,
+    tweetId: string
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+
+    try {
+      // Make API call to delete the comment
+      await axios.delete(`/api/tweets/comments/${commentId}`, {
+        data: { userId: currentUser.id },
+      });
+
+      // Update the tweet's replies count in state
+      setTweets((prevTweets) =>
+        prevTweets.map((tweet) => {
+          if (tweet.id === tweetId) {
+            return {
+              ...tweet,
+              replies: Math.max(0, tweet.replies - 1),
+            };
+          }
+          return tweet;
+        })
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+
+      // Fallback for development
+      if (process.env.NODE_ENV === "development") {
+        // Update the tweet's replies count in state anyway
+        setTweets((prevTweets) =>
+          prevTweets.map((tweet) => {
+            if (tweet.id === tweetId) {
+              return {
+                ...tweet,
+                replies: Math.max(0, tweet.replies - 1),
+              };
+            }
+            return tweet;
+          })
+        );
+        return true;
+      }
+
+      return false;
+    }
+  };
+
   const value = {
     tweets,
     isLoading,
@@ -218,6 +472,9 @@ export const TweetProvider: React.FC<{ children: ReactNode }> = ({
     bookmarkTweet,
     deleteTweet,
     bookmarks,
+    addComment,
+    getComments,
+    deleteComment,
   };
 
   return (

@@ -1,3 +1,11 @@
+export interface Comment {
+  id: string;
+  content: string;
+  author: User;
+  createdAt: string;
+  likes: number;
+}
+
 export interface Tweet {
   id: string;
   content: string;
@@ -8,6 +16,10 @@ export interface Tweet {
   replies: number;
   isLiked?: boolean;
   isRetweeted?: boolean;
+  images?: string[];
+  location?: string;
+  scheduledDate?: string;
+  comments?: Comment[];
 }
 
 export interface User {
@@ -21,7 +33,7 @@ export interface User {
   location?: string;
   website?: string;
   joinDate?: string;
-  banner?: string; // Add banner property
+  banner?: string;
 }
 
 export interface Notification {
