@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Home from "./pages/Home";
@@ -15,6 +16,8 @@ import Bookmarks from "./pages/Bookmarks";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Discover from "./pages/Discover";
+import UsersPage from "./pages/UsersPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TweetProvider } from "./context/TweetContext";
 
@@ -37,12 +40,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Layout component to include sidebar only for authenticated routes
-const AuthenticatedLayout = ({ children }: { children: React.ReactNode }) => {
+// Layout component to include sidebar for authenticated routes
+const AuthenticatedLayout = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Sidebar />
-      {children}
+      <Outlet /> {/* This is where page content will render */}
     </div>
   );
 };
@@ -61,76 +64,81 @@ function AppRoutes() {
         element={!isAuthenticated ? <Signup /> : <Navigate to="/" />}
       />
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+      {/* All authenticated routes should be inside this layout */}
+      <Route element={<AuthenticatedLayout />}>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
               <Home />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/explore"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <ProtectedRoute>
               <Explore />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
               <Notifications />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
               <Messages />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/bookmarks"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookmarks"
+          element={
+            <ProtectedRoute>
               <Bookmarks />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
               <Profile />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
               <Settings />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/discover"
+          element={
+            <ProtectedRoute>
+              <Discover />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
     </Routes>
   );
 }

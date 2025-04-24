@@ -34,6 +34,7 @@ export interface User {
   website?: string;
   joinDate?: string;
   banner?: string;
+  isFollowing?: boolean; // Added to track if current user is following this user
 }
 
 export interface Notification {
